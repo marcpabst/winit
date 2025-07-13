@@ -8,8 +8,9 @@ use objc2_foundation::{CGFloat, CGPoint, CGRect, MainThreadMarker, NSObject, NSS
 use objc2_ui_kit::{
     UICoordinateSpace, UIEvent, UIForceTouchCapability, UIGestureRecognizer,
     UIGestureRecognizerDelegate, UIGestureRecognizerState, UIKeyInput, UIPanGestureRecognizer,
-    UIPinchGestureRecognizer, UIResponder, UIRotationGestureRecognizer, UITapGestureRecognizer,
-    UITextInputTraits, UITouch, UITouchPhase, UITouchType, UITraitEnvironment, UIView,
+    UIPinchGestureRecognizer, UIPress, UIResponder, UIRotationGestureRecognizer,
+    UITapGestureRecognizer, UITextInputTraits, UITouch, UITouchPhase, UITouchType,
+    UITraitEnvironment, UIView,
 };
 
 use super::app_state::{self, EventWrapper};
@@ -17,6 +18,7 @@ use super::window::WinitUIWindow;
 use crate::dpi::PhysicalPosition;
 use crate::event::{ElementState, Event, Force, KeyEvent, Touch, TouchPhase, WindowEvent};
 use crate::keyboard::{Key, KeyCode, KeyLocation, NamedKey, NativeKeyCode, PhysicalKey};
+use crate::platform_impl::ios::events::create_key_event;
 use crate::platform_impl::platform::DEVICE_ID;
 use crate::platform_impl::KeyEventExtra;
 use crate::window::{WindowAttributes, WindowId as RootWindowId};
@@ -550,8 +552,23 @@ impl WinitView {
         app_state::handle_nonuser_events(mtm, touch_events);
     }
 
-    fn handle_presses(&self, touches: &NSSet<UIPress>) {
-        println!("WinitView::handle_presses: {:?}", touches);
+    fn handle_presses(&self, presses: &NSSet<UIPress>) {
+        let window = self.window().unwrap();
+        let mut key_events = Vec::new();
+        let mtm = MainThreadMarker::new().unwrap();
+        for press in presses {
+            let event = create_key_event(press, mtm);
+            println!("{:?}", event);
+            key_events.push(EventWrapper::StaticEvent(Event::WindowEvent {
+                window_id: RootWindowId(window.id()),
+                event: WindowEvent::KeyboardInput {
+                    device_id: DEVICE_ID,
+                    event,
+                    is_synthetic: false,
+                },
+            }));
+        }
+        app_state::handle_nonuser_events(mtm, key_events);
     }
 
     fn handle_insert_text(&self, text: &NSString) {

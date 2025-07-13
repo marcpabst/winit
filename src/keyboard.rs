@@ -93,6 +93,8 @@ pub enum NativeKeyCode {
     Android(u32),
     /// A macOS "scancode".
     MacOS(u16),
+    /// An iOS "HID usage code".
+    IOS(i64),
     /// A Windows "scancode".
     Windows(u16),
     /// An XKB "keycode".
@@ -101,7 +103,7 @@ pub enum NativeKeyCode {
 
 impl std::fmt::Debug for NativeKeyCode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use NativeKeyCode::{Android, MacOS, Unidentified, Windows, Xkb};
+        use NativeKeyCode::{Android, MacOS, Unidentified, Windows, Xkb, IOS};
         let mut debug_tuple;
         match self {
             Unidentified => {
@@ -113,6 +115,10 @@ impl std::fmt::Debug for NativeKeyCode {
             },
             MacOS(code) => {
                 debug_tuple = f.debug_tuple("MacOS");
+                debug_tuple.field(&format_args!("0x{code:04X}"));
+            },
+            IOS(code) => {
+                debug_tuple = f.debug_tuple("IOS");
                 debug_tuple.field(&format_args!("0x{code:04X}"));
             },
             Windows(code) => {
@@ -147,6 +153,8 @@ pub enum NativeKey {
     /// A macOS "scancode". There does not appear to be any direct analogue to either keysyms or
     /// "virtual-key" codes in macOS, so we report the scancode instead.
     MacOS(u16),
+    /// The HID usage code of the key used by UIKit on iOS.
+    IOS(i64),
     /// A Windows "virtual-key code".
     Windows(u16),
     /// An XKB "keysym".
@@ -157,7 +165,7 @@ pub enum NativeKey {
 
 impl std::fmt::Debug for NativeKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use NativeKey::{Android, MacOS, Unidentified, Web, Windows, Xkb};
+        use NativeKey::{Android, MacOS, Unidentified, Web, Windows, Xkb, IOS};
         let mut debug_tuple;
         match self {
             Unidentified => {
@@ -169,6 +177,10 @@ impl std::fmt::Debug for NativeKey {
             },
             MacOS(code) => {
                 debug_tuple = f.debug_tuple("MacOS");
+                debug_tuple.field(&format_args!("0x{code:04X}"));
+            },
+            IOS(code) => {
+                debug_tuple = f.debug_tuple("IOS");
                 debug_tuple.field(&format_args!("0x{code:04X}"));
             },
             Windows(code) => {
@@ -195,6 +207,7 @@ impl From<NativeKeyCode> for NativeKey {
             NativeKeyCode::Unidentified => NativeKey::Unidentified,
             NativeKeyCode::Android(x) => NativeKey::Android(x),
             NativeKeyCode::MacOS(x) => NativeKey::MacOS(x),
+            NativeKeyCode::IOS(x) => NativeKey::IOS(x),
             NativeKeyCode::Windows(x) => NativeKey::Windows(x),
             NativeKeyCode::Xkb(x) => NativeKey::Xkb(x),
         }
