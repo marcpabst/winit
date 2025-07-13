@@ -168,6 +168,16 @@ declare_class!(
             self.handle_touches(touches)
         }
 
+        #[method(pressesBegan:withEvent:)]
+        fn presses_began(&self, presses: &NSSet<UIPress>, _event: Option<&UIEvent>) {
+            self.handle_presses(presses)
+        }
+
+        #[method(pressesEnded:withEvent:)]
+        fn presses_ended(&self, presses: &NSSet<UIPress>, _event: Option<&UIEvent>) {
+            self.handle_presses(presses)
+        }
+
         #[method(pinchGesture:)]
         fn pinch_gesture(&self, recognizer: &UIPinchGestureRecognizer) {
             let window = self.window().unwrap();
@@ -538,6 +548,10 @@ impl WinitView {
         }
         let mtm = MainThreadMarker::new().unwrap();
         app_state::handle_nonuser_events(mtm, touch_events);
+    }
+
+    fn handle_presses(&self, touches: &NSSet<UIPress>) {
+        println!("WinitView::handle_presses: {:?}", touches);
     }
 
     fn handle_insert_text(&self, text: &NSString) {
