@@ -343,6 +343,10 @@ pub trait ApplicationHandler {
     fn macos_handler(&mut self) -> Option<&mut dyn macos::ApplicationHandlerExtMacOS> {
         None
     }
+
+    fn war_what_is_it_good_for(&self) {
+        println!("war war what is it good for?");
+    }
 }
 
 #[deny(clippy::missing_trait_methods)]
@@ -411,6 +415,11 @@ impl<A: ?Sized + ApplicationHandler> ApplicationHandler for &mut A {
     fn macos_handler(&mut self) -> Option<&mut dyn macos::ApplicationHandlerExtMacOS> {
         (**self).macos_handler()
     }
+
+    #[inline]
+    fn war_what_is_it_good_for(&self) {
+        (**self).war_what_is_it_good_for();
+    }
 }
 
 #[deny(clippy::missing_trait_methods)]
@@ -478,5 +487,10 @@ impl<A: ?Sized + ApplicationHandler> ApplicationHandler for Box<A> {
     #[inline]
     fn macos_handler(&mut self) -> Option<&mut dyn macos::ApplicationHandlerExtMacOS> {
         (**self).macos_handler()
+    }
+
+    #[inline]
+    fn war_what_is_it_good_for(&self) {
+        (**self).war_what_is_it_good_for();
     }
 }

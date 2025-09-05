@@ -38,7 +38,7 @@ use crate::{ScreenEdge, StatusBarStyle, ValidOrientations, WindowAttributesIos};
 
 define_class!(
     #[unsafe(super(UIWindow, UIResponder, NSObject))]
-    #[name = "WinitUIWindow"]
+    #[name = "WinitUIWindow2"]
     #[derive(Debug, PartialEq, Eq, Hash)]
     pub(crate) struct WinitUIWindow;
 
@@ -47,20 +47,20 @@ define_class!(
         #[unsafe(method(becomeKeyWindow))]
         fn become_key_window(&self) {
             let mtm = MainThreadMarker::new().unwrap();
-            app_state::handle_nonuser_event(mtm, EventWrapper::Window {
-                window_id: self.id(),
-                event: WindowEvent::Focused(true),
-            });
+            app_state::handle_nonuser_event(
+                mtm,
+                EventWrapper::Window { window_id: self.id(), event: WindowEvent::Focused(true) },
+            );
             let _: () = unsafe { msg_send![super(self), becomeKeyWindow] };
         }
 
         #[unsafe(method(resignKeyWindow))]
         fn resign_key_window(&self) {
             let mtm = MainThreadMarker::new().unwrap();
-            app_state::handle_nonuser_event(mtm, EventWrapper::Window {
-                window_id: self.id(),
-                event: WindowEvent::Focused(false),
-            });
+            app_state::handle_nonuser_event(
+                mtm,
+                EventWrapper::Window { window_id: self.id(), event: WindowEvent::Focused(false) },
+            );
             let _: () = unsafe { msg_send![super(self), resignKeyWindow] };
         }
     }

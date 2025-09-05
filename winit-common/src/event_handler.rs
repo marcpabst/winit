@@ -69,6 +69,7 @@ impl EventHandler {
 
         impl Drop for ClearOnDrop<'_> {
             fn drop(&mut self) {
+                println!("clearing application handler");
                 match self.0.inner.try_borrow_mut().as_deref_mut() {
                     Ok(data @ Some(_)) => {
                         let handler = data.take();
@@ -104,6 +105,28 @@ impl EventHandler {
         // soundness.
     }
 
+    pub fn get(&self) -> &RefCell<Option<Box<dyn ApplicationHandler + 'static>>> {
+        &self.inner
+    }
+
+    pub unsafe fn set_unchecked(&self, app: Box<dyn ApplicationHandler>) {
+        match self.inner.try_borrow_mut().as_deref_mut() {
+            Ok(Some(_)) => {
+                unreachable!("tried to set handler while another was already set");
+            },
+            Ok(data @ None) => {
+                *data = Some(app);
+            },
+            Err(_) => {
+                unreachable!("tried to set handler that is currently in use");
+            },
+        }
+
+        // Note: This does not set up the `ClearOnDrop` guard, so it is the
+        // responsibility of the caller to ensure that the handler is cleared
+        // when it is no longer needed.
+    }
+
     pub fn in_use(&self) -> bool {
         self.inner.try_borrow().is_err()
     }
@@ -137,6 +160,7 @@ impl EventHandler {
     }
 
     pub fn terminate(&self) {
+        println!("terminating application handler");
         match self.inner.try_borrow_mut().as_deref_mut() {
             Ok(data @ Some(_)) => {
                 let handler = data.take();
@@ -151,5 +175,12 @@ impl EventHandler {
                 panic!("tried to clear handler while an event is currently being handled");
             },
         }
+    }
+}
+
+impl Drop for EventHandler {
+    fn drop(&mut self) {
+        // just print a message to indicate that the app state is being dropped
+        println!("EventHandler is being dropped!");
     }
 }

@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::ffi::c_void;
 use std::ptr;
 use std::sync::Arc;
@@ -143,8 +144,7 @@ pub struct PlatformSpecificEventLoopAttributes {}
 
 impl EventLoop {
     pub fn new(_: &PlatformSpecificEventLoopAttributes) -> Result<EventLoop, EventLoopError> {
-        let mtm = MainThreadMarker::new()
-            .expect("On iOS, `EventLoop` must be created on the main thread");
+        let mtm = unsafe { MainThreadMarker::new_unchecked() };
 
         if !AppState::setup_global(mtm) {
             // Required, AppState is global state, and event loop can only be run once.
@@ -168,7 +168,10 @@ impl EventLoop {
             &center,
             // `applicationDidBecomeActive:`
             unsafe { UIApplicationDidBecomeActiveNotification },
-            move |_| app_state::handle_resumed(mtm),
+            move |_| {
+                println!("UIApplicationDidBecomeActiveNotification received");
+                app_state::handle_resumed(mtm)
+            },
         );
         let _will_resign_active_observer = create_observer(
             &center,
@@ -237,19 +240,30 @@ impl EventLoop {
         })
     }
 
-    pub fn run_app<A: ApplicationHandler>(self, app: A) -> ! {
+    pub fn run_app<A: ApplicationHandler>(self, app: A) -> Result<(), EventLoopError> {
         let application: Option<Retained<UIApplication>> =
             unsafe { msg_send![UIApplication::class(), sharedApplication] };
-        assert!(
-            application.is_none(),
-            "\
-                `EventLoop` cannot be `run` after a call to `UIApplicationMain` on iOS\nNote: \
-             `EventLoop::run_app` calls `UIApplicationMain` on iOS",
-        );
+        // assert!(
+        //     application.is_none(),
+        //     "\
+        //         `EventLoop` cannot be `run` after a call to `UIApplicationMain` on iOS\nNote: \
+        //      `EventLoop::run_app` calls `UIApplicationMain` on iOS",
+        // );
 
-        // We intentionally override neither the application nor the delegate,
-        // to allow the user to do so themselves!
-        app_state::launch(self.mtm, app, || UIApplication::main(None, None, self.mtm))
+        match application {
+            Some(_application) => {
+                println!("UIApplication already exists, launching application state");
+                unsafe { app_state::launch_unchecked(self.mtm, app) };
+                // manually call `didFinishLaunching"
+                // app_state::did_finish_launching(self.mtm);
+            },
+            None => {
+                // We intentionally override neither the application nor the delegate,
+                // to allow the user to do so themselves!
+                app_state::launch(self.mtm, app, || UIApplication::main(None, None, self.mtm));
+            },
+        }
+        Ok(())
     }
 
     pub fn window_target(&self) -> &dyn RootActiveEventLoop {
@@ -267,6 +281,7 @@ fn setup_control_flow_observers() {
             _: *mut c_void,
         ) {
             let mtm = MainThreadMarker::new().unwrap();
+
             #[allow(non_upper_case_globals)]
             match activity {
                 CFRunLoopActivity::AfterWaiting => app_state::handle_wakeup_transition(mtm),
@@ -290,6 +305,7 @@ fn setup_control_flow_observers() {
             activity: CFRunLoopActivity,
             _: *mut c_void,
         ) {
+            // println!("control_flow_main_end_handler called with activity: {:?}", activity);
             let mtm = MainThreadMarker::new().unwrap();
             #[allow(non_upper_case_globals)]
             match activity {
@@ -305,6 +321,7 @@ fn setup_control_flow_observers() {
             activity: CFRunLoopActivity,
             _: *mut c_void,
         ) {
+            // println!("control_flow_end_handler called with activity: {:?}", activity);
             let mtm = MainThreadMarker::new().unwrap();
             #[allow(non_upper_case_globals)]
             match activity {
@@ -325,6 +342,7 @@ fn setup_control_flow_observers() {
             ptr::null_mut(),
         )
         .unwrap();
+
         main_loop.add_observer(Some(&begin_observer), kCFRunLoopDefaultMode);
 
         let main_end_observer = CFRunLoopObserver::new(

@@ -20,7 +20,7 @@ pub struct ViewControllerState {
 
 define_class!(
     #[unsafe(super(UIViewController, UIResponder, NSObject))]
-    #[name = "WinitUIViewController"]
+    #[name = "WinitUIViewController2"]
     #[ivars = ViewControllerState]
     pub(crate) struct WinitViewController;
 
