@@ -50,10 +50,13 @@ define_class!(
         fn draw_rect(&self, rect: CGRect) {
             let mtm = MainThreadMarker::new().unwrap();
             let window = self.window().unwrap();
-            app_state::handle_nonuser_event(mtm, EventWrapper::Window {
-                window_id: window.id(),
-                event: WindowEvent::RedrawRequested,
-            });
+            app_state::handle_nonuser_event(
+                mtm,
+                EventWrapper::Window {
+                    window_id: window.id(),
+                    event: WindowEvent::RedrawRequested,
+                },
+            );
             let _: () = unsafe { msg_send![super(self), drawRect: rect] };
         }
 
@@ -71,10 +74,13 @@ define_class!(
             .to_physical(scale_factor);
 
             let window = self.window().unwrap();
-            app_state::handle_nonuser_event(mtm, EventWrapper::Window {
-                window_id: window.id(),
-                event: WindowEvent::SurfaceResized(size),
-            });
+            app_state::handle_nonuser_event(
+                mtm,
+                EventWrapper::Window {
+                    window_id: window.id(),
+                    event: WindowEvent::SurfaceResized(size),
+                },
+            );
         }
 
         #[unsafe(method(setContentScaleFactor:))]
@@ -90,6 +96,9 @@ define_class!(
                 Some(window) => window,
                 None => return,
             };
+
+            window.makeKeyAndVisible();
+
             // `setContentScaleFactor` may be called with a value of 0, which means "reset the
             // content scale factor to a device-specific default value", so we can't use the
             // parameter here. We can query the actual factor using the getter
@@ -550,10 +559,10 @@ impl WinitView {
                     let (primary, source) = if let UITouchType::Pencil = touch_type {
                         (true, PointerSource::Unknown)
                     } else {
-                        (ivars.primary_finger.get().unwrap() == finger_id, PointerSource::Touch {
-                            finger_id,
-                            force,
-                        })
+                        (
+                            ivars.primary_finger.get().unwrap() == finger_id,
+                            PointerSource::Touch { finger_id, force },
+                        )
                     };
 
                     touch_events.push(EventWrapper::Window {

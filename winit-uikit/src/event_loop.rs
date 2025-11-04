@@ -143,8 +143,7 @@ pub struct PlatformSpecificEventLoopAttributes {}
 
 impl EventLoop {
     pub fn new(_: &PlatformSpecificEventLoopAttributes) -> Result<EventLoop, EventLoopError> {
-        let mtm = MainThreadMarker::new()
-            .expect("On iOS, `EventLoop` must be created on the main thread");
+        let mtm = unsafe { MainThreadMarker::new_unchecked() };
 
         if !AppState::setup_global(mtm) {
             // Required, AppState is global state, and event loop can only be run once.
@@ -168,7 +167,10 @@ impl EventLoop {
             &center,
             // `applicationDidBecomeActive:`
             unsafe { UIApplicationDidBecomeActiveNotification },
-            move |_| app_state::handle_resumed(mtm),
+            move |_| {
+                println!("UIApplicationDidBecomeActiveNotification received");
+                app_state::handle_resumed(mtm)
+            },
         );
         let _will_resign_active_observer = create_observer(
             &center,
@@ -244,12 +246,23 @@ impl EventLoop {
             application.is_none(),
             "\
                 `EventLoop` cannot be `run` after a call to `UIApplicationMain` on iOS\nNote: \
-             `EventLoop::run_app` calls `UIApplicationMain` on iOS",
+             `EventLoop::run_app` calls `UIApplicationMain` on iOS!",
         );
 
         // We intentionally override neither the application nor the delegate,
         // to allow the user to do so themselves!
+
         app_state::launch(self.mtm, app, || UIApplication::main(None, None, self.mtm))
+    }
+
+    pub fn spawn_app<A: ApplicationHandler + 'static>(self, app: A) {
+        let application: Option<Retained<UIApplication>> =
+            unsafe { msg_send![UIApplication::class(), sharedApplication] };
+        if application.is_some() {
+            UIApplication::main(None, None, self.mtm);
+        }
+        unsafe { app_state::launch_unchecked(self.mtm, app) };
+        println!("App launched, returning to caller");
     }
 
     pub fn window_target(&self) -> &dyn RootActiveEventLoop {

@@ -383,6 +383,13 @@ impl winit_wayland::EventLoopBuilderExtWayland for EventLoopBuilder {
     }
 }
 
+#[cfg(ios_platform)]
+impl winit_uikit::EventLoopExtIOS for EventLoop {
+    fn spawn_app<A: ApplicationHandler + 'static>(self, app: A) {
+        self.event_loop.spawn_app(app);
+    }
+}
+
 #[cfg(web_platform)]
 impl winit_web::EventLoopExtWeb for EventLoop {
     fn spawn_app<A: ApplicationHandler + 'static>(self, app: A) {

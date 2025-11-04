@@ -69,6 +69,8 @@ objc2-ui-kit = { workspace = true, features = [
     "UIView",
     "UIViewController",
     "UIWindow",
+    "UIScene",
+    "UIWindowScene"
 ] }
 
 [package.metadata.docs.rs]

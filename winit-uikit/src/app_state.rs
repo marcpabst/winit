@@ -261,6 +261,28 @@ pub(crate) fn launch<R>(
     get_handler(mtm).set(Box::new(app), run)
 }
 
+pub(crate) unsafe fn launch_unchecked<'a>(
+    mtm: MainThreadMarker,
+    app: impl ApplicationHandler + 'a,
+) {
+    let boxed: Box<dyn ApplicationHandler + 'a> = Box::new(app);
+    let leaked: &'a dyn ApplicationHandler = Box::leak(boxed);
+    // app owns all its internal data, so we can safely transmute it to a static lifetime.
+    let leaked: &'static dyn ApplicationHandler = std::mem::transmute(leaked);
+    let boxed_static: Box<dyn ApplicationHandler + 'static> =
+        Box::from_raw(leaked as *const dyn ApplicationHandler as *mut dyn ApplicationHandler);
+
+    get_handler(mtm).set(boxed_static, || {
+        // wait forever
+        loop {
+            std::thread::park();
+        }
+    });
+
+    // manually call did_finish_launching since we are not using run()
+    did_finish_launching(mtm);
+}
+
 pub fn did_finish_launching(mtm: MainThreadMarker) {
     let this = AppState::get(mtm);
 
@@ -274,12 +296,12 @@ pub fn did_finish_launching(mtm: MainThreadMarker) {
 
 // AppState::did_finish_launching handles the special transition `Init`
 pub fn handle_wakeup_transition(mtm: MainThreadMarker) {
+    // println!("HANDLING wakeup_transition on iOS");
     let this = AppState::get(mtm);
     let cause = match this.wakeup_transition() {
         None => return,
         Some(cause) => cause,
     };
-
     get_handler(mtm).handle(|app| app.new_events(&ActiveEventLoop { mtm }, cause));
     handle_nonuser_events(mtm, []);
 }
@@ -374,10 +396,12 @@ pub(crate) fn send_occluded_event_for_all_windows(application: &UIApplication, o
 }
 
 pub fn handle_main_events_cleared(mtm: MainThreadMarker) {
+    // println!("HANDLING main_events_cleared on iOS");
     let this = AppState::get(mtm);
     if !this.has_launched() || this.has_terminated() {
         return;
     }
+
     match this.state.get() {
         AppStateImpl::ProcessingEvents { .. } => {},
         _ => bug!("`ProcessingRedraws` happened unexpectedly"),
@@ -451,10 +475,14 @@ fn handle_hidpi_proxy(mtm: MainThreadMarker, event: ScaleFactorChanged) {
     let ScaleFactorChanged { suggested_size, scale_factor, window } = event;
     let new_surface_size = Arc::new(Mutex::new(suggested_size));
     get_handler(mtm).handle(|app| {
-        app.window_event(&ActiveEventLoop { mtm }, window.id(), WindowEvent::ScaleFactorChanged {
-            scale_factor,
-            surface_size_writer: SurfaceSizeWriter::new(Arc::downgrade(&new_surface_size)),
-        });
+        app.window_event(
+            &ActiveEventLoop { mtm },
+            window.id(),
+            WindowEvent::ScaleFactorChanged {
+                scale_factor,
+                surface_size_writer: SurfaceSizeWriter::new(Arc::downgrade(&new_surface_size)),
+            },
+        );
     });
     let (view, screen_frame) = get_view_and_screen_frame(&window);
     let physical_size = *new_surface_size.lock().unwrap();

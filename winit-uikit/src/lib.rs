@@ -112,12 +112,18 @@ use std::os::raw::c_void;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
+use winit_core::application::ApplicationHandler;
 use winit_core::monitor::{MonitorHandle, VideoMode};
 use winit_core::window::{PlatformWindowAttributes, Window};
 
 pub use self::event_loop::{EventLoop, PlatformSpecificEventLoopAttributes};
 use self::monitor::MonitorHandle as UIKitMonitorHandle;
 use self::window::Window as UIKitWindow;
+
+pub trait EventLoopExtIOS {
+    /// Spawns the event loop without blocking the current thread.
+    fn spawn_app<A: ApplicationHandler + 'static>(self, app: A);
+}
 
 /// Additional methods on [`Window`] that are specific to iOS.
 pub trait WindowExtIOS {
